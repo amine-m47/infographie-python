@@ -14,11 +14,12 @@ def Rotation(A, t, x, y):
     # avec x les points abscisses et y les points des
     # ordonnées de la figure
     xa, ya = A
-    x = x -xa
-    y = y -ya
+    X = x -xa
+    Y = y -ya
     M = np.array([[cos(t), -sin(t)], [sin(t), cos(t)]])
-    v = np.array([x, y])
-    return M.dot(v)
+    v = np.array([X, Y])
+    Xr, Yr = M.dot(v)
+    return Xr + xa, Yr + ya
 
 def AgrandissementOrigine(l, x, y):
     # Homothétie de rapport l autour de l’origine
@@ -35,3 +36,14 @@ def TranslationOrigine(x, y, tx, ty):
     v = np.array([x, y])
     t = np.array([[tx], [ty]])
     return v + t
+
+def Rotation2(A, t, x, y):
+    xa, ya = A
+
+    X = x - xa
+    Y = y - ya
+    M = np.array([[cos(t), -sin(t)],
+                  [sin(t),  cos(t)]])
+    pts = np.vstack((X, Y))
+    Xr, Yr = np.dot(M, pts)
+    return Xr + xa, Yr + ya
