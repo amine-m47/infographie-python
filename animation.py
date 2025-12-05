@@ -1,184 +1,146 @@
+import matplotlib
+
+matplotlib.use("Agg")
+
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib.animation as animation
-from math import cos, sin, pi
+from matplotlib.animation import FuncAnimation
+from matplotlib.patches import Circle, Polygon
 
-# Fonction de rotation autour d'un point A
-def Rotation(A, t, x, y):
-    xA, yA = A
-    X = np.array(x) - xA
-    Y = np.array(y) - yA
-    Xr = X * cos(t) - Y * sin(t)
-    Yr = X * sin(t) + Y * cos(t)
-    return Xr + xA, Yr + yA
 
-# Fonction pour créer un cercle
-def create_circle(x, y, radius, num_points=100):
-    theta = np.linspace(0, 2*np.pi, num_points)
-    x_circle = x + radius * np.cos(theta)
-    y_circle = y + radius * np.sin(theta)
-    return x_circle, y_circle
+# ---------------------------------------------------------
+# Fonctions utilitaires
+# ---------------------------------------------------------
+def create_triangle(center, size, upright=True):
+    if upright:
+        base_x = np.array([0, size, size / 2])
+        base_y = np.array([0, 0, size])
+    else:
+        base_x = np.array([0, size, size / 2])
+        base_y = np.array([size, size, 0])
+    x = base_x - size / 2
+    y = base_y
+    # appliquer rotation si nécessaire et décaler au centre
+    return np.column_stack([x + center[0], y + center[1]])
 
-# Configuration de la figure
-fig, ax = plt.subplots()
-ax.set_aspect('equal')
+
+def rotate_triangle(triangle_points, angle_deg, center):
+    angle = np.deg2rad(angle_deg)
+    cx, cy = center
+    rotated = []
+    for x, y in triangle_points:
+        xr = np.cos(angle) * (x - cx) - np.sin(angle) * (y - cy) + cx
+        yr = np.sin(angle) * (x - cx) + np.cos(angle) * (y - cy) + cy
+        rotated.append([xr, yr])
+    return np.array(rotated)
+
+
+# ---------------------------------------------------------
+# Figure
+# ---------------------------------------------------------
+fig, ax = plt.subplots(figsize=(6, 6))
 ax.set_xlim(0, 4)
 ax.set_ylim(0, 4)
-ax.set_facecolor('white')  # Fond blanc pour un meilleur contraste
+ax.set_aspect('equal')
 
-# Liste pour stocker les images de l'animation
-liste_images = []
+# Tête
+head = Circle((2, 2), 1.2, facecolor='none', edgecolor='black', lw=1.5)
+ax.add_patch(head)
 
-# Coordonnées initiales des formes (dispersées)
-# Triangle 1 (oreille gauche)
-x_triangle1 = np.array([0.5, 1, 0.75])
-y_triangle1 = np.array([2.5, 2.5, 3])
+# Oreilles animées
+ear_size = 0.7
+ear_left_final_center = np.array([1.25, 3.1])
+ear_right_final_center = np.array([2.75, 3.1])
 
-# Triangle 2 (oreille droite)
-x_triangle2 = np.array([2.5, 3, 2.75])
-y_triangle2 = np.array([2.5, 2.5, 3])
+# Oreilles départ (aléatoires)
+ear_left_center_start = np.random.uniform(0, 4, 2)
+ear_right_center_start = np.random.uniform(0, 4, 2)
+ear_left_angle_start = np.random.uniform(-90, 90)  # rotation initiale
+ear_right_angle_start = np.random.uniform(-90, 90)
 
-# Cercle 1 (tête)
-x_circle1, y_circle1 = create_circle(1.5, 2, 0.75)
+# Créer les triangles au départ
+ear_left_tri = create_triangle(ear_left_center_start, ear_size, True)
+ear_right_tri = create_triangle(ear_right_center_start, ear_size, True)
+ear_left = Polygon(rotate_triangle(ear_left_tri, ear_left_angle_start, ear_left_center_start), facecolor='none',
+                   edgecolor='black', lw=1.5)
+ear_right = Polygon(rotate_triangle(ear_right_tri, ear_right_angle_start, ear_right_center_start), facecolor='none',
+                    edgecolor='black', lw=1.5)
+ax.add_patch(ear_left)
+ax.add_patch(ear_right)
 
-# Cercles pour les yeux
-left_eye = create_circle(1.2, 2.2, 0.2)
-right_eye = create_circle(1.8, 2.2, 0.2)
+# Yeux
+eye_left = Circle((1.55, 2.4), 0.0, facecolor='none', edgecolor='black', lw=1.5)
+eye_right = Circle((2.45, 2.4), 0.0, facecolor='none', edgecolor='black', lw=1.5)
+ax.add_patch(eye_left)
+ax.add_patch(eye_right)
 
-# Cercles pour les pupilles
-left_pupil = create_circle(1.2, 2.2, 0.05)
-right_pupil = create_circle(1.8, 2.2, 0.05)
+# Pupilles
+pupil_left = Circle((1.55, 2.4), 0.0, facecolor='black')
+pupil_right = Circle((2.45, 2.4), 0.0, facecolor='black')
+ax.add_patch(pupil_left)
+ax.add_patch(pupil_right)
 
-# Cercle pour le nez
-x_nose, y_nose = create_circle(1.5, 1.75, 0.1)
+# Nez
+nose = Polygon(create_triangle((2, 1.9), 0.2, upright=False), facecolor='black', alpha=0.0)
+ax.add_patch(nose)
 
-# Lignes pour les moustaches
-x_moustache1 = [1.5, 1.0, 1.5]  # Moustache gauche
-y_moustache1 = [1.75, 1.85, 1.65]
-x_moustache2 = [1.5, 2.0, 1.5]  # Moustache droite
-y_moustache2 = [1.75, 1.85, 1.65]
-x_moustache3 = [1.5, 1.2, 1.5]  # Moustache gauche 2
-y_moustache3 = [1.75, 1.95, 1.55]
-x_moustache4 = [1.5, 1.8, 1.5]  # Moustache droite 2
-y_moustache4 = [1.75, 1.95, 1.55]
+# Moustaches
+moustache_angles = [-30, -15, 15, 30, 150, 165, 195, 210]
+moustaches = []
+for angle in moustache_angles:
+    cx, cy = 2, 1.9
+    rad = np.deg2rad(angle)
+    x = np.array([cx, cx + 0.8 * np.cos(rad)])
+    y = np.array([cy, cy + 0.8 * np.sin(rad)])
+    line, = ax.plot([x[0], x[0]], [y[0], y[0]], 'k', lw=1.5)
+    moustaches.append((line, x, y))
 
-# Lignes pour la bouche
-x_mouth = [1.3, 1.7, 1.5]  # Bouche
-y_mouth = [1.5, 1.5, 1.4]
+# ---------------------------------------------------------
+# Animation
+NB_FRAMES = 150
 
-# Création des images pour chaque étape de l'animation
-for j in range(101):  # 101 étapes pour une rotation complète
-    angle = 2 * pi * j / 100  # Angle de rotation (0 à 2π)
 
-    # Transformation des triangles (oreilles)
-    # Déplacer les triangles vers le centre
-    tx1 = 1.0 - np.mean(x_triangle1)
-    ty1 = 2.75 - np.mean(y_triangle1)
-    x_triangle1_translated = [x + tx1 * j / 100 for x in x_triangle1]
-    y_triangle1_translated = [y + ty1 * j / 100 for y in y_triangle1]
+def update(frame):
+    t = frame / (NB_FRAMES - 1)
 
-    tx2 = 2.0 - np.mean(x_triangle2)
-    ty2 = 2.75 - np.mean(y_triangle2)
-    x_triangle2_translated = [x + tx2 * j / 100 for x in x_triangle2]
-    y_triangle2_translated = [y + ty2 * j / 100 for y in y_triangle2]
+    # Oreilles : translation + rotation
+    new_left_center = ear_left_center_start + (ear_left_final_center - ear_left_center_start) * t
+    new_right_center = ear_right_center_start + (ear_right_final_center - ear_right_center_start) * t
+    new_left_angle = ear_left_angle_start * (1 - t)
+    new_right_angle = ear_right_angle_start * (1 - t)
+    ear_left.set_xy(rotate_triangle(create_triangle(new_left_center, ear_size, True), new_left_angle, new_left_center))
+    ear_right.set_xy(
+        rotate_triangle(create_triangle(new_right_center, ear_size, True), new_right_angle, new_right_center))
 
-    # Rotation des triangles
-    xi1, yi1 = Rotation((1.0, 2.75), angle, x_triangle1_translated, y_triangle1_translated)
-    xi2, yi2 = Rotation((2.0, 2.75), angle, x_triangle2_translated, y_triangle2_translated)
+    # Tête
+    head.set_radius(1.2 * t)
 
-    # Transformation des cercles (yeux et nez)
-    tx_circle1 = 1.5 - 1.5
-    ty_circle1 = 2 - 2
-    x_circle1_translated = [x + tx_circle1 * j / 100 for x in x_circle1]
-    y_circle1_translated = [y + ty_circle1 * j / 100 for y in y_circle1]
+    # Yeux
+    if t > 0.3:
+        eye_left.set_radius(0.2 * (t - 0.3) / 0.7)
+        eye_right.set_radius(0.2 * (t - 0.3) / 0.7)
 
-    tx_left_eye = 1.2 - 1.2
-    ty_left_eye = 2.2 - 2.2
-    x_left_eye_translated = [x + tx_left_eye * j / 100 for x in left_eye[0]]
-    y_left_eye_translated = [y + ty_left_eye * j / 100 for y in left_eye[1]]
+    # Pupilles
+    if t > 0.5:
+        pupil_left.set_radius(0.1 * (t - 0.5) / 0.5)
+        pupil_right.set_radius(0.1 * (t - 0.5) / 0.5)
 
-    tx_right_eye = 1.8 - 1.8
-    ty_right_eye = 2.2 - 2.2
-    x_right_eye_translated = [x + tx_right_eye * j / 100 for x in right_eye[0]]
-    y_right_eye_translated = [y + ty_right_eye * j / 100 for y in right_eye[1]]
+    # Nez
+    if t > 0.6:
+        nose.set_alpha((t - 0.6) / 0.4)
 
-    tx_left_pupil = 1.2 - 1.2
-    ty_left_pupil = 2.2 - 2.2
-    x_left_pupil_translated = [x + tx_left_pupil * j / 100 for x in left_pupil[0]]
-    y_left_pupil_translated = [y + ty_left_pupil * j / 100 for y in left_pupil[1]]
+    # Moustaches
+    for line, x, y in moustaches:
+        appear_t = 0.7
+        progress = max(0, (t - appear_t) / (1 - appear_t))
+        x_end = x[0] + (x[1] - x[0]) * progress
+        y_end = y[0] + (y[1] - y[0]) * progress
+        line.set_data([x[0], x_end], [y[0], y_end])
 
-    tx_right_pupil = 1.8 - 1.8
-    ty_right_pupil = 2.2 - 2.2
-    x_right_pupil_translated = [x + tx_right_pupil * j / 100 for x in right_pupil[0]]
-    y_right_pupil_translated = [y + ty_right_pupil * j / 100 for y in right_pupil[1]]
+    return [head, ear_left, ear_right, eye_left, eye_right, pupil_left, pupil_right, nose] + [l[0] for l in moustaches]
 
-    tx_nose = 1.5 - 1.5
-    ty_nose = 1.75 - 1.75
-    x_nose_translated = [x + tx_nose * j / 100 for x in x_nose]
-    y_nose_translated = [y + ty_nose * j / 100 for y in y_nose]
 
-    # Transformation des moustaches
-    tx_moustache1 = 1.5 - 1.5
-    ty_moustache1 = 1.75 - 1.75
-    x_moustache1_translated = [x + tx_moustache1 * j / 100 for x in x_moustache1]
-    y_moustache1_translated = [y + ty_moustache1 * j / 100 for y in y_moustache1]
+anim = FuncAnimation(fig, update, frames=NB_FRAMES, blit=True)
+anim.save("Tete_Chat_Oreilles_Rotation.gif", writer='pillow', fps=25)
 
-    tx_moustache2 = 1.5 - 1.5
-    ty_moustache2 = 1.75 - 1.75
-    x_moustache2_translated = [x + tx_moustache2 * j / 100 for x in x_moustache2]
-    y_moustache2_translated = [y + ty_moustache2 * j / 100 for y in y_moustache2]
-
-    tx_moustache3 = 1.5 - 1.5
-    ty_moustache3 = 1.75 - 1.75
-    x_moustache3_translated = [x + tx_moustache3 * j / 100 for x in x_moustache3]
-    y_moustache3_translated = [y + ty_moustache3 * j / 100 for y in y_moustache3]
-
-    tx_moustache4 = 1.5 - 1.5
-    ty_moustache4 = 1.75 - 1.75
-    x_moustache4_translated = [x + tx_moustache4 * j / 100 for x in x_moustache4]
-    y_moustache4_translated = [y + ty_moustache4 * j / 100 for y in y_moustache4]
-
-    # Transformation de la bouche
-    tx_mouth = 1.5 - 1.5
-    ty_mouth = 1.5 - 1.5
-    x_mouth_translated = [x + tx_mouth * j / 100 for x in x_mouth]
-    y_mouth_translated = [y + ty_mouth * j / 100 for y in y_mouth]
-
-    # Dessiner les triangles (oreilles)
-    im1 = ax.fill(xi1, yi1, facecolor='pink', edgecolor='black')
-    im2 = ax.fill(xi2, yi2, facecolor='pink', edgecolor='black')
-
-    # Dessiner le cercle (tête)
-    im3 = ax.plot(x_circle1_translated, y_circle1_translated, color='orange', linewidth=2)
-
-    # Dessiner les yeux
-    im4 = ax.fill(x_left_eye_translated, y_left_eye_translated, facecolor='white', edgecolor='black')
-    im5 = ax.fill(x_right_eye_translated, y_right_eye_translated, facecolor='white', edgecolor='black')
-
-    # Dessiner les pupilles
-    im6 = ax.fill(x_left_pupil_translated, y_left_pupil_translated, facecolor='black')
-    im7 = ax.fill(x_right_pupil_translated, y_right_pupil_translated, facecolor='black')
-
-    # Dessiner le nez
-    im8 = ax.fill(x_nose_translated, y_nose_translated, facecolor='pink')
-
-    # Dessiner les moustaches
-    im9 = ax.plot(x_moustache1_translated, y_moustache1_translated, color='black', linewidth=1)
-    im10 = ax.plot(x_moustache2_translated, y_moustache2_translated, color='black', linewidth=1)
-    im11 = ax.plot(x_moustache3_translated, y_moustache3_translated, color='black', linewidth=1)
-    im12 = ax.plot(x_moustache4_translated, y_moustache4_translated, color='black', linewidth=1)
-
-    # Dessiner la bouche
-    im13 = ax.plot(x_mouth_translated, y_mouth_translated, color='black', linewidth=1)
-
-    # Ajouter les éléments graphiques à la liste
-    liste_images.append(im1 + im2 + im3 + im4 + im5 + im6 + im7 + im8 + im9 + im10 + im11 + im12 + im13)
-
-# Création de l'animation
-anim = animation.ArtistAnimation(fig, liste_images, interval=50)
-
-# Sauvegarder l'animation en GIF
-anim.save("animation_chat.gif", writer="pillow", fps=30)
-
-# Afficher l'animation
-plt.show()
+print("GIF généré ✔ : oreilles avec translation + rotation, triangles non déformés")
